@@ -9,29 +9,30 @@ import tensorflow as tf
 import pandas as pd
 import progressbar
 
+@tf.function
 def loss(theta):
-    diff1 = theta - 5.
-    diff2 = theta
-    norm1 = - tf.linalg.norm(diff1) * 2
-    norm2 = - tf.linalg.norm(diff2) * 2
+    diff1 = theta - 5.0
+    diff2 = theta 
+    norm1 = - tf.linalg.norm(diff1) * 2.0
+    norm2 = - tf.linalg.norm(diff2) * 2.0
     f = 0.3 * tf.math.exp(norm1) + tf.math.exp(norm2)
     return tf.math.log(f)
 
+@tf.function
 def mh_step(x_old):
-    x_new = np.random.normal(size=x_old.shape) + x_old    
+    x_new = tf.random.normal(x_old.shape) + x_old    
     loss_ratio = loss(x_new) - loss(x_old)
-    loss_ratio = np.exp(loss_ratio)
-    loss_ratio = min(1.0, loss_ratio)
-    if np.random.rand() <= loss_ratio:
+    loss_ratio = tf.math.exp(loss_ratio)
+    if tf.random.uniform(()) <= loss_ratio:
         return x_new
     else:
         return x_old
 
 def mh_sampling(steps):
-    x = np.random.normal(size=(2,))
+    x = tf.random.normal((2,))
     rows = []
     for s in progressbar.progressbar(range(steps)):
-        rows.append(x)
+        rows.append(x.numpy())
         x = mh_step(x)
 
     shape = x.shape[0]
@@ -45,8 +46,8 @@ def main():
     df = mh_sampling(N)
     print(df)
 
-    ## Discard burn-out samples
-    burn_in = 1000
+    ## Discard burn-in samples
+    burn_in = max(1000, N // 10)
     samples = df.tail(N- burn_in)
     print(samples)
 
