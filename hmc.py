@@ -6,76 +6,94 @@ import progressbar
 import pandas as pd
 
 @tf.function
-def loss(theta):
-    diff1 = theta - 5.
+def p(theta):
+    diff1 = theta - tf.ones(theta.shape, dtype=tf.float64) * 5.0
     diff2 = theta
-    norm1 = - tf.linalg.norm(diff1) * 2
-    norm2 = - tf.linalg.norm(diff2) * 2
-    f = 0.3 * tf.math.exp(norm1) + tf.math.exp(norm2)
-    return tf.math.log(f)
+    norm1 = tf.linalg.norm(diff1) * 2.0
+    norm2 = tf.linalg.norm(diff2) * 2.0
+    f = 0.3 * tf.math.exp(-norm1) + tf.math.exp(-norm2)
+    return f
 
+@tf.function
+def log_p(theta):
+    return tf.math.log(p(theta))
+
+@tf.function
 def leapfrog_step(theta_t, r_t, eta):
     with tf.GradientTape() as tape:
-        y = loss(theta_t)
+        y = log_p(theta_t)
 
     grad1 = tape.gradient(y, theta_t)
-    r_t.assign(r_t.numpy() + grad1.numpy() * eta * 0.5)
+    r_t.assign_add(grad1 * eta * 0.5)
 
-    theta_t.assign(theta_t.numpy() + r_t.numpy() * eta)
+    theta_t.assign_add(r_t * eta)
 
     with tf.GradientTape() as tape:
-        y = loss(theta_t)
+        y = log_p(theta_t)
 
     grad2 = tape.gradient(y, theta_t)
-    r_t.assign(r_t.numpy() + grad2.numpy() * eta * 0.5)
+    r_t.assign_add(grad2 * eta * 0.5)
 
     return theta_t, r_t
 
-def hmc_step(theta_old, theta, theta_t, r_0, r_old, r_t, eta, L=10):
-    r_0.assign(np.random.normal(size=theta.shape))
-    r_t.assign(r_0.numpy())
+@tf.function
+def hmc_step(theta, theta_t, r_0, r_old, r_t, eta, L=10):
+    r_0.assign(tf.random.normal(theta.shape, dtype=tf.float64))
+    r_t.assign(r_0)
     theta_t.assign(theta)
 
     for l in range(L):
-        x, r = leapfrog_step(theta_t, r_t, eta)
+        _ = leapfrog_step(theta_t, r_t, eta)        
 
-    loss1 = loss(theta_t)
-    loss0 = loss(theta)
+    loss1 = log_p(theta_t)
+    loss0 = log_p(theta)
 
-    numerator = tf.math.exp(loss1 - tf.reduce_sum(tf.multiply(r_t,r_t))) 
-    denominator = tf.math.exp(loss0 - tf.reduce_sum(tf.multiply(r_0,r_0))) 
+    energy1 = - 0.5 * tf.reduce_sum(tf.multiply(r_t,r_t))
+    energy0 = - 0.5 * tf.reduce_sum(tf.multiply(r_0,r_0))
+    numerator = tf.math.exp(loss1 + energy1) 
+    denominator = tf.math.exp(loss0 + energy0) 
     
-    ratio = max(1.0, numerator/denominator)
-
-    if np.random.rand() <= ratio:
-        return theta_t.numpy(), True
+    ratio = numerator/denominator
+    random_number = tf.random.uniform((), dtype=tf.float64)
+    if tf.reduce_sum(random_number) <= tf.reduce_sum(ratio):
+        theta.assign(theta_t)
+        return theta_t, True
     else:
-        return theta.numpy(), False
+        return theta, False
 
-def hmc_sampling(M):
-    theta_old = tf.Variable(np.random.normal(size=(2,)))
-    theta = tf.Variable(np.zeros(theta_old.shape))
-    theta_t = tf.Variable(np.zeros(theta_old.shape))
-    r_0 = tf.Variable(np.zeros(theta_old.shape))
-    r_old = tf.Variable(np.zeros(theta_old.shape))
-    r_t = tf.Variable(np.zeros(theta_old.shape))
-    eta = 0.1
+def hmc_sampling(M, eta=0.1, L=10):
+    theta = tf.Variable(np.random.normal(size=(2,)))
+    theta_t = tf.Variable(np.zeros(theta.shape))
+    r_0 = tf.Variable(np.zeros(theta.shape))
+    r_old = tf.Variable(np.zeros(theta.shape))
+    r_t = tf.Variable(np.zeros(theta.shape))
     rows = []
     for m in progressbar.progressbar(range(M)):
-        sample, accepted = hmc_step(theta_old, theta, theta_t, r_0, r_old, r_t, eta)
-        rows.append(list(sample) + [accepted])
+        sample, accepted = hmc_step(theta, theta_t, r_0, r_old, r_t, eta, L=L)
+        rows.append(list(sample.numpy()) + [bool(accepted)])
 
     shape = theta.shape[0]
     columns = ["x_" + str(i) for i in range(shape)] + ["accepted"]
     return pd.DataFrame(rows, columns=columns)
 
 def main():
-    N = 1000
-    df = hmc_sampling(N)
+    N = 10000
+    eta = 0.5
+    L = 100
+    df = hmc_sampling(N, eta=eta, L=L)
 
-    burn_in = 0#1000
+    burn_in = max(1000, N // 10)
+    burn_in = 8000
     samples = df.tail(N - burn_in)
     print(samples)
+
+    samples.to_csv("draws/hmc.csv", index=False)
+
+    accepted = samples[samples["accepted"] == True]
+    print("Accepted ratio", len(accepted) / len(samples))
+    g = sbn.histplot(samples["x_0"], bins=40)
+    plt.show()
+
 
 if __name__ == '__main__':
     main()
