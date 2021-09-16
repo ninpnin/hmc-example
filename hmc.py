@@ -7,7 +7,7 @@ import pandas as pd
 
 @tf.function
 def p(theta):
-    diff1 = theta - tf.ones(theta.shape, dtype=tf.float64) * 5.0
+    diff1 = theta - 5.0
     diff2 = theta
     norm1 = tf.linalg.norm(diff1) * 2.0
     norm2 = tf.linalg.norm(diff2) * 2.0
