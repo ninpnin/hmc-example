@@ -7,11 +7,11 @@ import pandas as pd
 
 @tf.function
 def loss(theta):
-    diff1 = theta - 0.25
-    diff2 = theta + 0.5
-    norm1 = tf.linalg.norm(diff1)
-    norm2 = tf.linalg.norm(diff2)
-    f = 0.3 * tf.math.exp(-norm1) + tf.math.exp(-norm2)
+    diff1 = theta - 5.
+    diff2 = theta
+    norm1 = - tf.linalg.norm(diff1) * 2
+    norm2 = - tf.linalg.norm(diff2) * 2
+    f = 0.3 * tf.math.exp(norm1) + tf.math.exp(norm2)
     return tf.math.log(f)
 
 def leapfrog_step(theta_t, r_t, eta):
