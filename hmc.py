@@ -1,10 +1,17 @@
+"""
+Sample from multivariate Gaussian mixture models using HMC
+"""
 import numpy as np
 from matplotlib import pyplot as plt
 import seaborn as sbn
+import argparse
 import tensorflow as tf
 import progressbar
 import pandas as pd
 
+# Gaussian mixture model
+# 3 units standard normal at 5.0
+# 10 units standard normal at 0.0
 @tf.function
 def p(theta):
     diff1 = theta - 5.0
@@ -76,12 +83,12 @@ def hmc_sampling(M, eta=0.1, L=10):
     columns = ["x_" + str(i) for i in range(shape)] + ["accepted"]
     return pd.DataFrame(rows, columns=columns)
 
-def main():
-    N = 15000
-    burn_in = max(1000, N // 10)
-    eta = 0.25
-    L = 100
-    chains = 2
+def main(args):
+    N = args.N
+    burn_in = min(N // 2, max(1000, N // 10))
+    eta = args.eta
+    L = args.L
+    chains = args.chains
 
     chain_dfs = []
     for chain in range(chains):
@@ -109,4 +116,11 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--N", type=int, default=5000, help="Number of samples per chain")
+    parser.add_argument("--chains", type=int, default=2)
+    parser.add_argument("--eta", type=float, default=0.25)
+    parser.add_argument("--L", type=int, default=25, help="Leapfrog steps")
+    args = parser.parse_args()
+
+    main(args)
