@@ -77,20 +77,33 @@ def hmc_sampling(M, eta=0.1, L=10):
     return pd.DataFrame(rows, columns=columns)
 
 def main():
-    N = 10000
-    eta = 0.5
-    L = 100
-    df = hmc_sampling(N, eta=eta, L=L)
-
+    N = 15000
     burn_in = max(1000, N // 10)
-    burn_in = 8000
-    samples = df.tail(N - burn_in)
-    print(samples)
+    eta = 0.25
+    L = 100
+    chains = 2
 
-    samples.to_csv("draws/hmc.csv", index=False)
+    chain_dfs = []
+    for chain in range(chains):
+        print("Chain", chain)
+        df = hmc_sampling(N, eta=eta, L=L)
+
+        chain_df = df.tail(N - burn_in)
+        chain_df["chain"] = chain
+        chain_dfs.append(chain_df)    
+
+    samples = pd.concat(chain_dfs)
+
+    chain_variances = samples.groupby("chain").var().mean()
+    variances = samples.var()
+
+    r_hat = chain_variances / variances
+    print(r_hat)
 
     accepted = samples[samples["accepted"] == True]
     print("Accepted ratio", len(accepted) / len(samples))
+    
+    samples.to_csv("draws/hmc.csv", index=False)
     g = sbn.histplot(samples["x_0"], bins=40)
     plt.show()
 
