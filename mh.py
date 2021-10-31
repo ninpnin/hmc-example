@@ -28,8 +28,8 @@ def mh_step(x_old):
     else:
         return x_old
 
-def mh_sampling(steps):
-    x = tf.random.normal((2,))
+def mh_sampling(steps, D):
+    x = tf.random.normal((D,))
     rows = []
     for s in progressbar.progressbar(range(steps)):
         rows.append(x.numpy())
@@ -42,12 +42,13 @@ def mh_sampling(steps):
 def main():
     print("Let's sample some stuff")
 
-    N = 150000
-    df = mh_sampling(N)
+    D = 8
+    N = 15000
+    df = mh_sampling(N, D)
     print(df)
 
     ## Discard burn-in samples
-    burn_in = max(1000, N // 10)
+    burn_in = min(N // 2, max(1000, N // 10))
     samples = df.tail(N- burn_in)
     print(samples)
 

@@ -68,8 +68,8 @@ def hmc_step(theta, theta_t, r_0, r_old, r_t, eta, L=10):
     else:
         return theta, False
 
-def hmc_sampling(M, eta=0.1, L=10):
-    theta = tf.Variable(np.random.normal(size=(2,)))
+def hmc_sampling(M, eta=0.1, L=10, D=2):
+    theta = tf.Variable(np.random.normal(size=(D,)))
     theta_t = tf.Variable(np.zeros(theta.shape))
     r_0 = tf.Variable(np.zeros(theta.shape))
     r_old = tf.Variable(np.zeros(theta.shape))
@@ -93,7 +93,7 @@ def main(args):
     chain_dfs = []
     for chain in range(chains):
         print("Chain", chain)
-        df = hmc_sampling(N, eta=eta, L=L)
+        df = hmc_sampling(N, eta=eta, L=L, D=args.D)
 
         chain_df = df.tail(N - burn_in)
         chain_df["chain"] = chain
@@ -121,6 +121,7 @@ if __name__ == '__main__':
     parser.add_argument("--chains", type=int, default=2)
     parser.add_argument("--eta", type=float, default=0.25)
     parser.add_argument("--L", type=int, default=25, help="Leapfrog steps")
+    parser.add_argument("--D", type=int, default=2, help="Dimensionality")
     args = parser.parse_args()
 
     main(args)
